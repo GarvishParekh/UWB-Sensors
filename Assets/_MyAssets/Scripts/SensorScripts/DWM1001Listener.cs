@@ -1,3 +1,4 @@
+using TMPro;
 using UnityEngine;
 using System.IO.Ports;
 using System.Threading;
@@ -9,6 +10,7 @@ public class DWM1001Listener : MonoBehaviour
     Thread readThread;
     bool isRunning = false;
 
+    [SerializeField] private TMP_Text logsText;
     public string portName = "COM3";  // Replace with your port
     public int baudRate = 115200;
 
@@ -83,6 +85,7 @@ public class DWM1001Listener : MonoBehaviour
             foreach (var kvp in tagPositions)
             {
                 Debug.Log($"Tag {kvp.Key}: {kvp.Value}");
+                logsText.text = $"Tag {kvp.Key}: {kvp.Value}";
             }
         }
     }
