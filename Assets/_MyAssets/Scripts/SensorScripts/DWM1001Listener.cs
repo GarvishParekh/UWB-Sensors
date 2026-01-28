@@ -1,92 +1,32 @@
-using TMPro;
 using UnityEngine;
-using System.IO.Ports;
-using System.Threading;
-using System.Collections.Generic;
+using System.Net;
+using System.Net.Sockets;
+using System.Text;
 
 public class DWM1001Listener : MonoBehaviour
 {
-    SerialPort serialPort;
-    Thread readThread;
-    bool isRunning = false;
-
-    [SerializeField] private TMP_Text logsText;
-    public string portName = "COM3";  // Replace with your port
-    public int baudRate = 115200;
-
-    // Store all tags by ID
-    public Dictionary<string, Vector3> tagPositions = new Dictionary<string, Vector3>();
+    UdpClient udp;
+    public int listenPort = 5005;
 
     void Start()
     {
-        serialPort = new SerialPort(portName, baudRate);
-        serialPort.ReadTimeout = 100;
-        serialPort.Open();
-
-        // Start listener mode
-        serialPort.WriteLine("les\n");
-
-        isRunning = true;
-        readThread = new Thread(ReadSerial);
-        readThread.Start();
+        udp = new UdpClient()
     }
 
-    void ReadSerial()
+    void Update()
     {
-        while (isRunning)
+        Debug.Log(udp.Available);
+        if (udp.Available > 0)
         {
-            try
-            {
-                string line = serialPort.ReadLine();
-                ParseLocation(line);
-            }
-            catch { }
-        }
-    }
-
-    void ParseLocation(string data)
-    {
-        // Example line: "DIST, ID:0x1234, x:1.23, y:2.34, z:0.45, q:90"
-        if (data.StartsWith("DIST") || data.StartsWith("POS"))
-        {
-            string[] parts = data.Split(',');
-            if (parts.Length >= 5)
-            {
-                string id = parts[1].Split(':')[1].Trim(); // ID:0x1234
-                float x = float.Parse(parts[2].Split(':')[1]);
-                float y = float.Parse(parts[3].Split(':')[1]);
-                float z = float.Parse(parts[4].Split(':')[1]);
-
-                Vector3 position = new Vector3(x, z, y); // Swap to Unity coords
-
-                lock (tagPositions)
-                {
-                    if (tagPositions.ContainsKey(id))
-                        tagPositions[id] = position;
-                    else
-                        tagPositions.Add(id, position);
-                }
-            }
+            IPEndPoint ep = new IPEndPoint(IPAddress.Any, 0);
+            byte[] data = udp.Receive(ref ep);
+            string message = Encoding.UTF8.GetString(data);
+            Debug.Log("UWB: " + message);
         }
     }
 
     void OnApplicationQuit()
     {
-        isRunning = false;
-        if (readThread != null) readThread.Abort();
-        if (serialPort != null && serialPort.IsOpen) serialPort.Close();
-    }
-
-    void Update()
-    {
-        // Example: Print all tags
-        lock (tagPositions)
-        {
-            foreach (var kvp in tagPositions)
-            {
-                Debug.Log($"Tag {kvp.Key}: {kvp.Value}");
-                logsText.text = $"Tag {kvp.Key}: {kvp.Value}";
-            }
-        }
+        udp.Close();
     }
 }
